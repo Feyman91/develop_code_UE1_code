@@ -18,13 +18,14 @@ rxObj.pfo = comm.PhaseFrequencyOffset(...
     SampleRate = sysParam.scs*sysParam.FFTLen, ...
     FrequencyOffsetSource="Input port");
 
-% Plot frequency response
-[h,w] = freqz(rxFilterCoef,1,1024,sysParam.scs*sysParam.FFTLen);
-figure;
-plot(w,20*log10(abs(h)));
-grid on;
-title('Tx Filter Frequency Response');
-xlabel('Frequency (Hz)');
-ylabel('Magnitude (dB)');
 
+if sysParam.enableScopes
+   [h,w] = freqz(rxFilterCoef,1,1024,sysParam.scs*sysParam.FFTLen,'whole');
+   figure;
+   plot(w,20*log10(abs(h)));
+   grid on;
+   title('Rx Filter Frequency Response');
+   xlabel('Frequency (Hz)');
+   ylabel('Magnitude (dB)');
+end
 end

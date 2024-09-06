@@ -114,13 +114,12 @@ pilotSignal     = helperOFDMPilotSignal(pilotsPerSym);
 numSymPerFrame  = sysParam.numSymPerFrame;
 verbosity       = sysParam.verbosity;
 
+dcIdx           = (FFTLength/2)+1;
 frameLength     = (FFTLength + CPLength)*numSymPerFrame; % total number of samples in one frame
 numSampPerSym   = FFTLength + CPLength;
 shortFrameLength = frameLength - numSampPerSym; % total samples in a frame without the sync symbol
-nullIdx = [1:((FFTLength-usedSubCarr)/2) ...
-    (FFTLength/2)+1 ...
-    ((FFTLength+usedSubCarr)/2)+2:FFTLength]';
-dataIdx = setdiff(1:usedSubCarr,1:pilotSpacing:usedSubCarr);
+headerSymLength = 72;
+
 cpFraction = 0.55;
 symbOffset = ceil(cpFraction*CPLength);
 syncSigLen = numSampPerSym;
@@ -157,55 +156,95 @@ dataConstData   = zeros(usedSubCarr-pilotsPerSym,...
 %% Perform OFDM demodulation, header decoding, and data decoding per frame
 
 % Extract out the header and data samples
-dataHeaderFrame = cfoCorrectedData(syncSigLen+(1:shortFrameLength));
+RefHeaderDataFrame = cfoCorrectedData(syncSigLen+(1:shortFrameLength));
+
 
 % Extract out the reference symbol samples and demod
 refSamples = cfoCorrectedData(syncSigLen+(1:numSampPerSym));
-demodulatedRS = ofdmdemod(refSamples,FFTLength,CPLength,symbOffset,nullIdx);
+refSignalIndRel = 1:length(channelEstRefSymbols);       % Relative index in BWP
+refSignalIndAbs = sysParam.subcarrier_start_index + refSignalIndRel - 1;  % Absolute index in FFT grid
+% Check if DC subcarrier index is included in refSignalIndAbs
+if any(refSignalIndAbs == dcIdx)
+    % Adjust indices: for indices >= dcIdx, add 1 to avoid DC subcarrier
+    refSignalIndAbs(refSignalIndAbs >= dcIdx) = refSignalIndAbs(refSignalIndAbs >= dcIdx) + 1;
+end
+refNullInd = [1:(refSignalIndAbs(1) - 1), (refSignalIndAbs(end) + 1):FFTLength].';  % Null indices outside the reference signal range
+% Step: Check if DC subcarrier is already in the null indices
+if ~ismember(dcIdx, refNullInd)
+    refNullInd = [refNullInd; dcIdx];  % Include DC subcarrier only if it's not already in null indices
+end
+demodulatedRS = ofdmdemod(refSamples,FFTLength,CPLength,symbOffset,refNullInd);
 
 % Extract out the next reference symbol samples and demod
 refSamples = cfoCorrectedData(frameLength+syncSigLen+(1:numSampPerSym));
-demodulatedNextRS = ofdmdemod(refSamples,FFTLength,CPLength,symbOffset,nullIdx);
+demodulatedNextRS = ofdmdemod(refSamples,FFTLength,CPLength,symbOffset,refNullInd);
+
 
 % Perform channel estimation over all subcarriers and symbols in the
 % frame
 estChannel = helperOFDMChannelEstimation...
      (demodulatedRS,demodulatedNextRS,channelEstRefSymbols,sysParam);
 
+
 % Extract out the header symbol samples and demod
-refSamples = cfoCorrectedData( ...
+headerSymIndRel = floor(usedSubCarr / 2) - floor(headerSymLength / 2) + (1:headerSymLength);  % Relative index in BWP
+headerSymIndAbs = sysParam.subcarrier_start_index + headerSymIndRel - 1;  % Absolute index in FFT grid
+% Check if DC subcarrier index is included in headerSymIndAbs
+if any(headerSymIndAbs == dcIdx)
+    % Adjust indices: for indices >= dcIdx, add 1 to avoid DC subcarrier
+    headerSymIndAbs(headerSymIndAbs >= dcIdx) = headerSymIndAbs(headerSymIndAbs >= dcIdx) + 1;
+end
+headerNullInd = [1:(headerSymIndAbs(1) - 1), (headerSymIndAbs(end) + 1):FFTLength].';  % Null indices outside the header signal range
+% Step: Check if DC subcarrier is already in the null indices
+if ~ismember(dcIdx, headerNullInd)
+    headerNullInd = [headerNullInd; dcIdx];  % Include DC subcarrier only if it's not already in null indices
+end
+HeaderSamples = cfoCorrectedData( ...
     ((headerIdx-length(ssIdx))*numSampPerSym + (1:numSampPerSym)));
 demodulatedHeader = ...
-    ofdmdemod(refSamples,FFTLength,CPLength,symbOffset,nullIdx);
+    ofdmdemod(HeaderSamples,FFTLength,CPLength,symbOffset,headerNullInd);
 if sysParam.enableChest
     % eqHeaderData = ofdmEqualize(demodulatedHeader,estChannel(:,headerIdx-1));
-    eqHeaderData = ofdmEqualize(demodulatedHeader,estChannel(:,1));
+    eqHeaderData = ofdmEqualize(demodulatedHeader,estChannel(headerSymIndRel,1));
 else
     eqHeaderData = demodulatedHeader;
 end
-
-
-
-
-headerInd = (usedSubCarr/2)-36+(1:72);
-headerData = eqHeaderData(headerInd);
+headerData = eqHeaderData;
 
 % Extract out and demodulate the data and pilot subcarriers
-[demodulatedData,pilots] = ...
-    ofdmdemod(dataHeaderFrame,FFTLength,CPLength,symbOffset,nullIdx,sysParam.pilotIdx);
+alldatasymInx_relative = 1:usedSubCarr;
+alldatasymInxAbs = sysParam.subcarrier_start_index + alldatasymInx_relative - 1;  % Absolute index in FFT grid
+% Check if DC subcarrier index is included in modDataIndAbs
+if any(alldatasymInxAbs == dcIdx)
+    % Adjust indices: for indices >= dcIdx, add 1 to avoid DC subcarrier
+    alldatasymInxAbs(alldatasymInxAbs >= dcIdx) = alldatasymInxAbs(alldatasymInxAbs >= dcIdx) + 1;
+end
+% Remove the pilot indices from modData indices
+pilotInd_relative = (1:sysParam.pilotSpacing:usedSubCarr).';
+modDataInd_relative = alldatasymInx_relative;
+modDataInd_relative(pilotInd_relative) = [];
+% Calculate absolute index in total FFT based on BWP start index
+pilotIndAbs = alldatasymInxAbs(pilotInd_relative).';
+dataNullInd = [1:(alldatasymInxAbs(1) - 1), (alldatasymInxAbs(end) + 1):FFTLength].';  % Null indices outside the data signal range
+% Step: Check if DC subcarrier is already in the null indices
+if ~ismember(dcIdx, dataNullInd)
+    dataNullInd = [dataNullInd; dcIdx];  % Include DC subcarrier only if it's not already in null indices
+end
+[demodulatedrefHeaderData,pilots] = ...
+    ofdmdemod(RefHeaderDataFrame,FFTLength,CPLength,symbOffset,dataNullInd,pilotIndAbs);
 
 % Perform channel equalization over entire data frame
 if sysParam.enableChest
-    estDataChanFrame = reshape(estChannel(dataIdx,2:end), ...
-        [length(dataIdx)*(numSymPerFrame-length(ssIdx)-length(rsIdx)-length(headerIdx)) 1]);
+    estDataChanFrame = reshape(estChannel(modDataInd_relative,2:end), ...
+        [length(modDataInd_relative)*(numSymPerFrame-length(ssIdx)-length(rsIdx)-length(headerIdx)) 1]);
     equalizedData = ofdmEqualize(...
-        demodulatedData(:,headerIdx:end),estDataChanFrame);
+        demodulatedrefHeaderData(:,headerIdx:end),estDataChanFrame);
 
 % Equalize the pilots as well
     equalizedPilots = ofdmEqualize(pilots(:,headerIdx:end), ...
-    reshape(estChannel((1:pilotSpacing:usedSubCarr),2:end),[],1));
+    reshape(estChannel(pilotInd_relative,2:end),[],1));
 else
-    equalizedData = demodulatedData(:,headerIdx:end);
+    equalizedData = demodulatedrefHeaderData(:,headerIdx:end);
     equalizedPilots = pilots(:,headerIdx:end);
 end
 

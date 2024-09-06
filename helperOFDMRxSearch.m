@@ -42,10 +42,24 @@ camped = false;
 foff = 0;
 
 % Form the sync signal
+% Step 1: Synchronization signal in BWP (relative index)
 FFTLength = sysParam.FFTLen;
-syncPad   = (FFTLength - 62)/2;
-syncNulls = [1:syncPad (FFTLength/2)+1 FFTLength-syncPad+2:FFTLength]';
-syncSignal = ofdmmod(helperOFDMSyncSignal(),FFTLength,0,syncNulls);
+dcIdx = (FFTLength/2)+1;          
+ZCsyncsignal_FD = helperOFDMSyncSignal(sysParam);
+syncSignalIndRel = floor(sysParam.usedSubCarr / 2) - floor(length(ZCsyncsignal_FD) / 2) + (1:length(ZCsyncsignal_FD));  % Relative index in BWP
+% Step 2: Calculate absolute index in total FFT based on BWP start index
+syncSignalIndAbs = sysParam.subcarrier_start_index + syncSignalIndRel - 1;  % Absolute index in FFT grid
+% Check if DC subcarrier index is included in syncSignalIndAbs, then drop that
+if any(syncSignalIndAbs == dcIdx)
+    % Adjust indices: for indices >= dcIdx, add 1 to avoid DC subcarrier
+    syncSignalIndAbs(syncSignalIndAbs >= dcIdx) = syncSignalIndAbs(syncSignalIndAbs >= dcIdx) + 1;
+end
+syncNullInd = [1:(syncSignalIndAbs(1) - 1), (syncSignalIndAbs(end) + 1):FFTLength].';
+% Step: Check if DC subcarrier is already in the null indices
+if ~ismember(dcIdx, syncNullInd)
+    syncNullInd = [syncNullInd; dcIdx];  % Include DC subcarrier only if it's not already in null indices
+end
+syncSignal = ofdmmod(ZCsyncsignal_FD,FFTLength,0,syncNullInd);
 
 if ~syncDetected
     % Perform timing synchronization
