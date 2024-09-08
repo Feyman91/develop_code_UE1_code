@@ -29,5 +29,4 @@ while gcd(zcRootIndex, seqLen) ~= 1
 end
 ZCsyncSignal = zadoffChuSeq(zcRootIndex, seqLen);
 
-
 end
