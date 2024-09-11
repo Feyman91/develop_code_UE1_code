@@ -105,7 +105,7 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
             dataParams.enableConst_measure = true; % Enable constellation measurement
 
         case 3
-            % 配置基站2的DataParams
+            % 配置基站3的DataParams
             dataParams.modOrder       = 64;    % Modulation order (64-QAM)
             dataParams.coderate       = "1/2"; % Code rate
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
@@ -116,7 +116,7 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
             dataParams.enableConst_measure = true; % Enable constellation measurement
 
          case 4
-            % 配置基站2的DataParams
+            % 配置基站4的DataParams
             dataParams.modOrder       = 64;    % Modulation order (64-QAM)
             dataParams.coderate       = "1/2"; % Code rate
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
@@ -128,6 +128,7 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
             
         otherwise
             % 默认配置
+            error('The given BS id is not supported(exceeds the total supported numbers 4!)');
             dataParams.modOrder       = 16;    % Modulation order (16-QAM)
             dataParams.coderate       = "1/2"; % Default code rate
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
@@ -156,13 +157,20 @@ function checkParamsInput(overAllOfdmParams)
     %   - No duplicate IDs in Rcv_DL_CoopBSs_id
     %   - All values in Rcv_DL_CoopBSs_id are positive integers
 
+    % 检查Rcv_DL_CoopBSs_id是否超出最大允许取到的ID值(online_BS)
+    if length(overAllOfdmParams.Rcv_DL_CoopBSs_id) > overAllOfdmParams.online_BS
+        error(['Parameters illegal: The given number of cooperative BS (%d) exceeds total number' ...
+            'of online BS (%d)'], ...
+            length(overAllOfdmParams.Rcv_DL_CoopBSs_id), overAllOfdmParams.online_BS);
+    end
+
     % 检查Rcv_DL_CoopBSs_id长度是否与PilotSubcarrierSpacing、BWPoffset一致
     if length(overAllOfdmParams.Rcv_DL_CoopBSs_id) ~= length(overAllOfdmParams.PilotSubcarrierSpacing)
         error(['Parameters mismatch: The total length of necessary setting parameter' ...
             ': PilotSubcarrierSpacing (%d) does not match the given number of cooperative BS (%d)'], ...
             length(overAllOfdmParams.PilotSubcarrierSpacing), length(overAllOfdmParams.Rcv_DL_CoopBSs_id));
     end
-
+    
     if length(overAllOfdmParams.Rcv_DL_CoopBSs_id) ~= length(overAllOfdmParams.BWPoffset)
         error(['Parameters mismatch: The total length of necessary setting parameter' ...
             ': BWPoffset (%d) does not match the given number of cooperative BS (%d)'], ...

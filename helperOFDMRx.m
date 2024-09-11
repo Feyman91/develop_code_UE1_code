@@ -1,4 +1,4 @@
-function [rxDataBits,isConnected,toff,diagnostics] = helperOFDMRx(rxWaveform,sysParam,rxObj,timesink)
+function [rxDataBits,isConnected,toff,diagnostics] = helperOFDMRx(rxWaveform,sysParam,rxObj,timesink,frameNum)
 %helperOFDMRx Processes OFDM signal.
 %   Performs carrier frequency offset estimation and correction, frame
 %   synchronization, OFDM demodulation, channel estimation, channel
@@ -27,27 +27,49 @@ function [rxDataBits,isConnected,toff,diagnostics] = helperOFDMRx(rxWaveform,sys
 %    headerCRCErrorFlag    - Indicates header CRC status (0-pass, 1-fail)
 %    dataCRCErrorFlag      - Indicates data CRC status (0-pass, 1-fail)
  
-%   Copyright 2023-2024 The MathWorks, Inc.
+% 获取当前基站的 ID
+current_BS_id = sysParam.CrtRcv_DL_CoopBS_id;
+fieldname = sprintf('DL_BS_%d', current_BS_id);
 
 persistent camped;
+% 初始化 camped，如果为空
 if isempty(camped)
-    camped = false;
+    camped = struct();
 end
+% 如果该基站的状态还未存储，则初始化
+if ~isfield(camped, fieldname)
+    camped.(fieldname) = false;  % 初始化状态
+end
+% if isempty(camped)
+%     camped = false;
+% end
 
 persistent rxInternalDiags;
+% 初始化 rxInternalDiags，如果为空
 if isempty(rxInternalDiags)
-    rxInternalDiags = struct( ...
+    rxInternalDiags = struct();
+end
+% 如果该基站的状态还未存储，则初始化
+if ~isfield(rxInternalDiags, fieldname)
+    rxInternalDiags.(fieldname) = struct( ...
         'estCFO',[],...
         'estChannel',[],...
-        'dataCRCErrorFlag',[]);
+        'dataCRCErrorFlag',[]);  % 初始化状态
 end
 
-if ~camped
+% if isempty(rxInternalDiags)
+%     rxInternalDiags = struct( ...
+%         'estCFO',[],...
+%         'estChannel',[],...
+%         'dataCRCErrorFlag',[]);
+% end
+
+if ~camped.(fieldname)
     isConnected = false;
     rxDataBits = [];
     % Search for sync symbol
-    [camped,ta,foff] = helperOFDMRxSearch(rxWaveform,sysParam);
-    if ~camped
+    [camped.(fieldname),ta,foff] = helperOFDMRxSearch(rxWaveform,sysParam);
+    if ~camped.(fieldname)
         diagnostics.estCFO = foff;
     else
         diagnostics.estCFO = [];
@@ -68,13 +90,12 @@ else
     % Receiver is camped on the base station
     isConnected = true;
     toff = sysParam.timingAdvance;
-
     if sysParam.verbosity > 0
-        fprintf('Detected and processing frame %d\n', sysParam.frameNum);
+        fprintf('[%s]Detected and processing frame %d\n',fieldname,frameNum);
         fprintf('------------------------------------------\n');
     else
         fprintf('.');
-        if floor(sysParam.frameNum/80) == sysParam.frameNum/80
+        if floor(frameNum/80) == frameNum/80
             fprintf('\n');
         end
     end
@@ -84,17 +105,17 @@ else
 end
 
 % Collect diagnostics
-oldCFO = rxInternalDiags.estCFO;
-oldFrameError = rxInternalDiags.dataCRCErrorFlag;
-oldEstChannel = rxInternalDiags.estChannel;
-rxInternalDiags = diagnostics;
-if sysParam.frameNum < 40
-    rxInternalDiags.estCFO = [oldCFO; diagnostics.estCFO];
-    rxInternalDiags.estChannel = [oldEstChannel; diagnostics.estChannel];
+oldCFO = rxInternalDiags.(fieldname).estCFO;
+oldFrameError = rxInternalDiags.(fieldname).dataCRCErrorFlag;
+oldEstChannel = rxInternalDiags.(fieldname).estChannel;
+rxInternalDiags.(fieldname) = diagnostics;
+if frameNum < 40
+    rxInternalDiags.(fieldname).estCFO = [oldCFO; diagnostics.estCFO];
+    rxInternalDiags.(fieldname).estChannel = [oldEstChannel; diagnostics.estChannel];
 end
-rxInternalDiags.dataCRCErrorFlag = [oldFrameError; diagnostics.dataCRCErrorFlag];
+rxInternalDiags.(fieldname).dataCRCErrorFlag = [oldFrameError; diagnostics.dataCRCErrorFlag];
 
-diagnostics = rxInternalDiags;
+diagnostics = rxInternalDiags.(fieldname);
 
 end
 
@@ -441,14 +462,31 @@ function [headerBits,errFlag] = OFDMHeaderRecovery(headSymb,sysParam)
 % sysParam        - system parameters structure
 % headerBits      - Decoded header bits.
 % errFlag         - CRC error flag, true if CRC failed
+% 获取当前基站的 ID
+current_BS_id = sysParam.CrtRcv_DL_CoopBS_id;
+fieldname = sprintf('DL_BS_%d', current_BS_id);
 
 persistent crcDet;
+% 初始化 camped，如果为空
 if isempty(crcDet)
-    crcDet = crcConfig(...
+    crcDet = struct();
+end
+% 如果该基站的状态还未存储，则初始化
+if ~isfield(crcDet, fieldname)
+    crcDet.(fieldname) = crcConfig(...
         'Polynomial',sysParam.headerCRCPoly, ...
         'InitialConditions',0, ...
         'FinalXOR',0);
 end
+
+
+% persistent crcDet;
+% if isempty(crcDet)
+%     crcDet = crcConfig(...
+%         'Polynomial',sysParam.headerCRCPoly, ...
+%         'InitialConditions',0, ...
+%         'FinalXOR',0);
+% end
 
 traceBackDepth = 30;
 deintrlvLen    = sysParam.headerIntrlvNColumns;
@@ -466,7 +504,7 @@ vitOut = vitdec((deintrlvOut(:)),...
     traceBackDepth,'term','unquant');
 
 % CRC check
-[headerBits,errFlag] = crcDetect(vitOut(1:(end-(sysParam.headerConvK-1))),crcDet);
+[headerBits,errFlag] = crcDetect(vitOut(1:(end-(sysParam.headerConvK-1))),crcDet.(fieldname));
 
 end
 
@@ -485,9 +523,18 @@ function [softLLRs,outBits,errFlag] = OFDMDataRecovery(dataIn,modOrd,codeIn,sysP
 % errFlag  - CRC err flag, outputs 1 for CRC fail and 0 CRC pass.
 
 % Create a persistent PN sequence object for use as an additive scrambler
+% 获取当前基站的 ID
+current_BS_id = sysParam.CrtRcv_DL_CoopBS_id;
+fieldname = sprintf('DL_BS_%d', current_BS_id);
+
 persistent pnSeq;
+% 初始化 camped，如果为空
 if isempty(pnSeq)
-    pnSeq = comm.PNSequence(Polynomial='x^-7 + x^-3 + 1',...
+    pnSeq = struct();
+end
+% 如果该基站的状态还未存储，则初始化
+if ~isfield(pnSeq, fieldname)
+    pnSeq.(fieldname) = comm.PNSequence(Polynomial='x^-7 + x^-3 + 1',...
         InitialConditionsSource="Input port",...
         MaskSource="Input port",...
         VariableSizeOutput=true,...
@@ -495,14 +542,37 @@ if isempty(pnSeq)
             sysParam.dataConvK 1]);
 end
 
+% persistent pnSeq;
+% if isempty(pnSeq)
+%     pnSeq = comm.PNSequence(Polynomial='x^-7 + x^-3 + 1',...
+%         InitialConditionsSource="Input port",...
+%         MaskSource="Input port",...
+%         VariableSizeOutput=true,...
+%         MaximumOutputSize=[sysParam.trBlkSize + sysParam.CRCLen + ...
+%             sysParam.dataConvK 1]);
+% end
+
 % Create a persistent CRC object
 persistent crcDet;
+% 初始化 camped，如果为空
 if isempty(crcDet)
-    crcDet = crcConfig(...
+    crcDet = struct();
+end
+% 如果该基站的状态还未存储，则初始化
+if ~isfield(crcDet, fieldname)
+    crcDet.(fieldname) = crcConfig(...
         'Polynomial',sysParam.CRCPoly,...
         'InitialConditions',0,...
         'FinalXOR',0);
 end
+
+% persistent crcDet;
+% if isempty(crcDet)
+%     crcDet = crcConfig(...
+%         'Polynomial',sysParam.CRCPoly,...
+%         'InitialConditions',0,...
+%         'FinalXOR',0);
+% end
 
 dataConvK      = sysParam.dataConvK;
 dataConvCode   = sysParam.dataConvCode; 
@@ -537,10 +607,10 @@ vitOut2 = vitOut(1:end-(dataConvK-1));
 
 % Descrambling
 dataScrOut = xor(vitOut2, ...
-                pnSeq(sysParam.initState,sysParam.scrMask,numel(vitOut2)));
+                pnSeq.(fieldname)(sysParam.initState,sysParam.scrMask,numel(vitOut2)));
 
 % Output CRC
-[outBits,errFlag] = crcDetect(dataScrOut,crcDet);
+[outBits,errFlag] = crcDetect(dataScrOut,crcDet.(fieldname));
 
 end
 

@@ -17,7 +17,7 @@ function ZCsyncSignal = helperOFDMSyncSignal(sysParam)
 
 
 % Copyright 2023 The MathWorks, Inc.
-BS_id = sysParam.Rcv_DL_CoopBSs_id;
+BS_id = sysParam.CrtRcv_DL_CoopBS_id;
 seqLen = min(63, sysParam.usedSubCarr);  % The ZC sequence length must fit within the BWP
 
 rootindices63_total = [22 23 25 26 29 31 32 34 37 38 40 41 43 44 46 47 50];

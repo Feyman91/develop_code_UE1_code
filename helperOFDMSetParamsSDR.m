@@ -1,4 +1,4 @@
-function [sysParam,txParam,payload_bs1,payload_bs2] = helperOFDMSetParamsSDR(OFDMParam,dataParam,allRadioResource)
+function [sysParam,txParam,payload_bs] = helperOFDMSetParamsSDR(OFDMParam,dataParam,allRadioResource)
 %helperOFDMSetParamsSDR(OFDMParam,dataParam) Generates simulation parameters.
 %   This function generates transmit-specific and common transmitter/receiver
 %   parameters for the OFDM simulation, based on the high-level user
@@ -60,19 +60,19 @@ sysParam.verbosity = dataParam.verbosity;
 % made to ensure that interdependent parameters are compatible with each
 % other.
 
-sysParam.Rcv_DL_CoopBSs_id        = OFDMParam.Rcv_DL_CoopBSs_id;      % 接收协作基站集 ID
-sysParam.FFTLen                = OFDMParam.FFTLength;           % FFT 长度
-sysParam.CPLen                 = OFDMParam.CPLength;            % 循环前缀长度
-sysParam.usedSubCarr           = OFDMParam.NumSubcarriers;      % 总的使用子载波数量
-sysParam.subcarrier_start_index = OFDMParam.subcarrier_start_index;  % BWP 子载波起始索引
-sysParam.subcarrier_end_index   = OFDMParam.subcarrier_end_index;    % BWP 子载波结束索引
-sysParam.subcarrier_center_offset = OFDMParam.subcarrier_center_offset;  % 中心偏移
-sysParam.BWPoffset              = OFDMParam.BWPoffset;          % 对应分配的BWP人为设置Offset
-sysParam.channelBW                    = OFDMParam.channelBW;           % 分配的信道总带宽(滤波器通带)
-sysParam.signalBW                     = OFDMParam.signalBW;           % 分配的信号总带宽(滤波器阻带)
-sysParam.scs                   = OFDMParam.Subcarrierspacing;   % 子载波间隔 (Hz)
-sysParam.pilotSpacing          = OFDMParam.PilotSubcarrierSpacing;  % 导频子载波间隔
-codeRate                = str2num(dataParam.coderate);       % Coding rate
+sysParam.CrtRcv_DL_CoopBS_id        = OFDMParam.CrtRcv_DL_CoopBS_id;      % 接收协作基站集 ID
+sysParam.FFTLen                     = OFDMParam.FFTLength;           % FFT 长度
+sysParam.CPLen                      = OFDMParam.CPLength;            % 循环前缀长度
+sysParam.usedSubCarr                = OFDMParam.NumSubcarriers;      % 总的使用子载波数量
+sysParam.subcarrier_start_index     = OFDMParam.subcarrier_start_index;  % BWP 子载波起始索引
+sysParam.subcarrier_end_index       = OFDMParam.subcarrier_end_index;    % BWP 子载波结束索引
+sysParam.subcarrier_center_offset   = OFDMParam.subcarrier_center_offset;  % 中心偏移
+sysParam.BWPoffset                  = OFDMParam.BWPoffset;          % 对应分配的BWP人为设置Offset
+sysParam.channelBW                  = OFDMParam.channelBW;           % 分配的信道总带宽(滤波器通带)
+sysParam.signalBW                   = OFDMParam.signalBW;           % 分配的信号总带宽(滤波器阻带)
+sysParam.scs                        = OFDMParam.Subcarrierspacing;   % 子载波间隔 (Hz)
+sysParam.pilotSpacing               = OFDMParam.PilotSubcarrierSpacing;  % 导频子载波间隔
+codeRate                            = str2num(dataParam.coderate);       % Coding rate
 if codeRate == 1/2
     sysParam.tracebackDepth =  30;                      % Traceback depth is 30 for coderate
     sysParam.codeRate = 1/2;
@@ -152,21 +152,22 @@ sysParam.txWaveformSize = ((sysParam.FFTLen +sysParam.CPLen)*sysParam.numSymPerF
 sysParam.timingAdvance = sysParam.txWaveformSize;
 sysParam.modOrder = dataParam.modOrder;
 
-% Generate payload message for BS1
+% Generate payload message for current BS
 sysParam.NumBitsPerCharacter = 7;
-payloadMessage_bs1 = char(readlines("transmit_data_bs1.txt"));
-messageLength_bs1 = length(payloadMessage_bs1);
-numPayloads_bs1 = ceil(sysParam.trBlkSize/(messageLength_bs1*sysParam.NumBitsPerCharacter)); 
-message_bs1 = repmat(payloadMessage_bs1,1,numPayloads_bs1);
-trBlk_bs1 = reshape(int2bit(double(message_bs1),sysParam.NumBitsPerCharacter),1,[]);
-payload_bs1 = trBlk_bs1(1:sysParam.trBlkSize);
-
-% Generate payload message for BS2
-sysParam.NumBitsPerCharacter = 7;
-payloadMessage_bs2 = char(readlines("transmit_data_bs2.txt"));
-messageLength_bs2 = length(payloadMessage_bs2);
-numPayloads_bs2 = ceil(sysParam.trBlkSize/(messageLength_bs2*sysParam.NumBitsPerCharacter)); 
-message_bs2 = repmat(payloadMessage_bs2,1,numPayloads_bs2);
-trBlk_bs2 = reshape(int2bit(double(message_bs2),sysParam.NumBitsPerCharacter),1,[]);
-payload_bs2 = trBlk_bs2(1:sysParam.trBlkSize);
+file_name = "transmit_data_bs" + string(num2str(sysParam.CrtRcv_DL_CoopBS_id)) + ".txt"; 
+payloadMessage_bs = char(readlines(file_name));
+messageLength_bs = length(payloadMessage_bs);
+numPayloads_bs = ceil(sysParam.trBlkSize/(messageLength_bs*sysParam.NumBitsPerCharacter)); 
+message_bs = repmat(payloadMessage_bs,1,numPayloads_bs);
+trBlk_bs = reshape(int2bit(double(message_bs),sysParam.NumBitsPerCharacter),1,[]);
+payload_bs = trBlk_bs(1:sysParam.trBlkSize);
+% 
+% % Generate payload message for BS2
+% sysParam.NumBitsPerCharacter = 7;
+% payloadMessage_bs2 = char(readlines("transmit_data_bs2.txt"));
+% messageLength_bs2 = length(payloadMessage_bs2);
+% numPayloads_bs2 = ceil(sysParam.trBlkSize/(messageLength_bs2*sysParam.NumBitsPerCharacter)); 
+% message_bs2 = repmat(payloadMessage_bs2,1,numPayloads_bs2);
+% trBlk_bs2 = reshape(int2bit(double(message_bs2),sysParam.NumBitsPerCharacter),1,[]);
+% payload_bs2 = trBlk_bs2(1:sysParam.trBlkSize);
 end

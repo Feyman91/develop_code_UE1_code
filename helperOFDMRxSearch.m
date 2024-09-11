@@ -19,22 +19,47 @@ function [camped,toff,foff] = helperOFDMRxSearch(rxIn,sysParam)
 %   foff - frequency offset as calculated from the first 144 symbols
 %   following sync symbol detection
 %
-% Copyright 2022-2024 The MathWorks, Inc.
+% 获取当前基站的 ID
+current_BS_id = sysParam.CrtRcv_DL_CoopBS_id;
+fieldname = sprintf('DL_BS_%d', current_BS_id);
 
 persistent syncDetected;
+% 初始化 camped，如果为空
 if isempty(syncDetected)
-    syncDetected = false;
+    syncDetected = struct();
 end
+% 如果该基站的状态还未存储，则初始化
+if ~isfield(syncDetected, fieldname)
+    syncDetected.(fieldname) = false;  % 初始化状态
+end
+
+% persistent syncDetected;
+% if isempty(syncDetected)
+%     syncDetected = false;
+% end
 
 % Create a countdown frame timer to wait for the frequency offset
 % estimation algorithm to converge
-persistent campedDelay
+persistent campedDelay;
+% 初始化 camped，如果为空
 if isempty(campedDelay)
+    campedDelay = struct();
+end
+% 如果该基站的状态还未存储，则初始化
+if ~isfield(campedDelay, fieldname)
     % The frequency offset algorithm requires 144 symbols to average before
     % the first valid frequency offset estimate. Wait a minimum number of
     % frames before declaring camped state.
-    campedDelay = ceil(144/sysParam.numSymPerFrame); 
+    campedDelay.(fieldname) = ceil(144/sysParam.numSymPerFrame); 
 end
+
+% persistent campedDelay
+% if isempty(campedDelay)
+%     % The frequency offset algorithm requires 144 symbols to average before
+%     % the first valid frequency offset estimate. Wait a minimum number of
+%     % frames before declaring camped state.
+%     campedDelay = ceil(144/sysParam.numSymPerFrame); 
+% end
 
 toff = [];  % by default, return an empty timing offset value to indicate
             % no sync symbol found or searched
@@ -61,34 +86,34 @@ if ~ismember(dcIdx, syncNullInd)
 end
 syncSignal = ofdmmod(ZCsyncsignal_FD,FFTLength,0,syncNullInd);
 
-if ~syncDetected
+if ~syncDetected.(fieldname)
     % Perform timing synchronization
     toff = timingEstimate(rxIn,syncSignal,Threshold = 0.6);
 
     if ~isempty(toff)
-        syncDetected = true;
+        syncDetected.(fieldname) = true;
         toff = toff - sysParam.CPLen;
-        fprintf('\nSync symbol found.\n');
+        fprintf('[%s]Sync symbol found.\n',fieldname);
         if sysParam.enableCFO
-            fprintf('Estimating carrier frequency offset ...');
+            fprintf('[%s]Estimating carrier frequency offset ...\n',fieldname);
         else
             camped = true; % go straight to camped if CFO not enabled
-            fprintf('Receiver camped.\n');
+            fprintf('[%s]Receiver camped.\n',fieldname);
         end
     else
-        syncDetected = false;
+        syncDetected.(fieldname) = false;
         fprintf('.');
     end
 else
     % Estimate frequency offset after finding sync symbol
-    if campedDelay > 0 && sysParam.enableCFO
+    if campedDelay.(fieldname) > 0 && sysParam.enableCFO
         % Run the frequency offset estimator and start the averaging to
         % converge to the final estimate
         foff = helperOFDMFrequencyOffset(rxIn,sysParam);
-        fprintf('.');
-        campedDelay = campedDelay - 1;
+        % fprintf('.');
+        campedDelay.(fieldname) = campedDelay.(fieldname) - 1;
     else
-        fprintf('\nReceiver camped.\n');
+        fprintf('[%s]Receiver camped.\n',fieldname);
         camped = true;
     end
 end

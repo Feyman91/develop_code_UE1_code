@@ -13,26 +13,41 @@ function foffset = helperOFDMFrequencyOffset(rxWaveform,sysParam)
 %   foffset - frequency offset is normalized to the symbol frequency. A value
 %   of 1.0 is equal to the subcarrier spacing.
 
-% Copyright 2023 The MathWorks, Inc.
+
 
 nFFT     = sysParam.FFTLen; 
 cpLength = sysParam.CPLen;
 symbLen  = nFFT + cpLength;
 buffLen  = length(rxWaveform);
 
+% 获取当前基站的 ID
+current_BS_id = sysParam.CrtRcv_DL_CoopBS_id;
+fieldname = sprintf('DL_BS_%d', current_BS_id);
+
 numSymPerFrame = sysParam.numSymPerFrame;
 numSampPerFrame = numSymPerFrame*symbLen;
 
 % For per-frame processing, maintain last samples in an averaging buffer
 persistent sampleAvgBuffer;
+% 初始化 camped，如果为空
 if isempty(sampleAvgBuffer)
+    sampleAvgBuffer = struct();
+end
+% 如果该基站的状态还未存储，则初始化
+if ~isfield(sampleAvgBuffer, fieldname)
     numFrames = floor(buffLen/numSampPerFrame);
     numAvgCols = ceil((150+numFrames)/6); % (24+1)*6 symbol minimum for averaging
-    sampleAvgBuffer = zeros(6*numAvgCols*symbLen,1);
+    sampleAvgBuffer.(fieldname) = zeros(6*numAvgCols*symbLen,1);
 end
+% persistent sampleAvgBuffer;
+% if isempty(sampleAvgBuffer)
+%     numFrames = floor(buffLen/numSampPerFrame);
+%     numAvgCols = ceil((150+numFrames)/6); % (24+1)*6 symbol minimum for averaging
+%     sampleAvgBuffer = zeros(6*numAvgCols*symbLen,1);
+% end
 
-corrIn = [sampleAvgBuffer(numSampPerFrame+1:end); rxWaveform];
-sampleAvgBuffer = corrIn;
+corrIn = [sampleAvgBuffer.(fieldname)(numSampPerFrame+1:end); rxWaveform];
+sampleAvgBuffer.(fieldname) = corrIn;
 
 % Form two correlator inputs, the second delayed from
 % the first by nFFT.

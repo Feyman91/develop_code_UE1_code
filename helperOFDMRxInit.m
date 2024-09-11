@@ -24,7 +24,7 @@ if sysParam.enableScopes
    figure;
    plot(w,20*log10(abs(h)));
    grid on;
-   title('Rx Filter Frequency Response');
+   title(sprintf('Rx Filter for DL BS %d Frequency Response', sysParam.CrtRcv_DL_CoopBS_id));
    xlabel('Frequency (Hz)');
    ylabel('Magnitude (dB)');
 end
