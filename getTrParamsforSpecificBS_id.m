@@ -84,8 +84,8 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
     switch current_receiving_BS_id
         case 1
             % 配置基站1的DataParams
-            dataParams.modOrder       = 64;    % Modulation order (64-QAM)
-            dataParams.coderate       = "1/2"; % Code rate, option for "1/2""2/3""3/4""5/6"
+            dataParams.modOrder       = 256;    % Modulation order (64-QAM)
+            dataParams.coderate       = "2/3"; % Code rate, option for "1/2""2/3""3/4""5/6"
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
             dataParams.numFrames      = 30;    % Number of frames to transmit
             dataParams.enableScopes   = true;  % Enable scopes for visualization
@@ -96,7 +96,7 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
         case 2
             % 配置基站2的DataParams
             dataParams.modOrder       = 64;    % Modulation order (64-QAM)
-            dataParams.coderate       = "1/2"; % Code rate
+            dataParams.coderate       = "5/6"; % Code rate
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
             dataParams.numFrames      = 30;    % Number of frames to transmit
             dataParams.enableScopes   = true;  % Enable scopes for visualization
