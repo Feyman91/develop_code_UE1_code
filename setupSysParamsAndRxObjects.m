@@ -1,4 +1,4 @@
-function [sysParamRxObj] = setupSysParamsAndRxObjects(overAllOfdmParams)
+function [sysParamRxObj] = setupSysParamsAndRxObjects(overAllOfdmParams, cfg)
     % setupSysParamsAndRxObjects: Set up system parameters, receiver objects, 
     % OFDM transmission parameters, and other related parameters for all BSs.
     %
@@ -18,7 +18,7 @@ function [sysParamRxObj] = setupSysParamsAndRxObjects(overAllOfdmParams)
         current_BS_id = overAllOfdmParams.Rcv_DL_CoopBSs_id(index);
 
         % 获取基站的传输参数
-        [OFDMParams, dataParams, all_radioResource] = getTrParamsforSpecificBS_id(overAllOfdmParams, index);
+        [OFDMParams, dataParams, all_radioResource] = getTrParamsforSpecificBS_id(overAllOfdmParams, index, cfg);
         [sysParam, txParam, transportBlk_bs] = helperOFDMSetParamsSDR(OFDMParams, dataParams, all_radioResource);
 
         % 计算总子载波数和采样率

@@ -1,4 +1,4 @@
-function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecificBS_id(overAllOfdmParams, index)
+function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecificBS_id(overAllOfdmParams, index, cfg)
     % getTransmissionParams: Generate OFDM and Data parameters for a specific BS_id.
     % This function also saves transmission information for all BSs using
     % all_radioResource structure, which is passed as an input.
@@ -88,10 +88,10 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
             dataParams.coderate       = "5/6"; % Code rate, option for "1/2""2/3""3/4""5/6"
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
             dataParams.numFrames      = 30;    % Number of frames to transmit
-            dataParams.enableScopes   = true;  % Enable scopes for visualization
-            dataParams.verbosity      = true;  % Enable verbosity for diagnostics
-            dataParams.printData      = true;  % Print received data
-            dataParams.enableConst_measure = true; % Enable constellation measurement
+            dataParams.enableScopes   = cfg.enableScopes;  % Enable scopes for visualization
+            dataParams.verbosity      = cfg.verbosity;  % Enable verbosity for diagnostics
+            dataParams.printData      = cfg.printData;  % Print received data
+            dataParams.enableConst_measure = cfg.enableConst_measure; % Enable constellation measurement
 
         case 2
             % 配置基站2的DataParams
@@ -99,10 +99,10 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
             dataParams.coderate       = "5/6"; % Code rate
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
             dataParams.numFrames      = 30;    % Number of frames to transmit
-            dataParams.enableScopes   = true;  % Enable scopes for visualization
-            dataParams.verbosity      = true;  % Enable verbosity for diagnostics
-            dataParams.printData      = true;  % Print received data
-            dataParams.enableConst_measure = true; % Enable constellation measurement
+            dataParams.enableScopes   = cfg.enableScopes;  % Enable scopes for visualization
+            dataParams.verbosity      = cfg.verbosity;  % Enable verbosity for diagnostics
+            dataParams.printData      = cfg.printData;  % Print received data
+            dataParams.enableConst_measure = cfg.enableConst_measure; % Enable constellation measurement
 
         case 3
             % 配置基站3的DataParams
@@ -110,10 +110,10 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
             dataParams.coderate       = "1/2"; % Code rate
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
             dataParams.numFrames      = 30;    % Number of frames to transmit
-            dataParams.enableScopes   = true;  % Enable scopes for visualization
-            dataParams.verbosity      = true;  % Enable verbosity for diagnostics
-            dataParams.printData      = true;  % Print received data
-            dataParams.enableConst_measure = true; % Enable constellation measurement
+            dataParams.enableScopes   = cfg.enableScopes;  % Enable scopes for visualization
+            dataParams.verbosity      = cfg.verbosity;  % Enable verbosity for diagnostics
+            dataParams.printData      = cfg.printData;  % Print received data
+            dataParams.enableConst_measure = cfg.enableConst_measure; % Enable constellation measurement
 
          case 4
             % 配置基站4的DataParams
@@ -121,10 +121,10 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
             dataParams.coderate       = "1/2"; % Code rate
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
             dataParams.numFrames      = 30;    % Number of frames to transmit
-            dataParams.enableScopes   = true;  % Enable scopes for visualization
-            dataParams.verbosity      = true;  % Enable verbosity for diagnostics
-            dataParams.printData      = true;  % Print received data
-            dataParams.enableConst_measure = true; % Enable constellation measurement
+            dataParams.enableScopes   = cfg.enableScopes;  % Enable scopes for visualization
+            dataParams.verbosity      = cfg.verbosity;  % Enable verbosity for diagnostics
+            dataParams.printData      = cfg.printData;  % Print received data
+            dataParams.enableConst_measure = cfg.enableConst_measure; % Enable constellation measurement
             
         otherwise
             % 默认配置
@@ -133,10 +133,10 @@ function [OFDMParams, dataParams, all_BSsRadioResource] = getTrParamsforSpecific
             dataParams.coderate       = "1/2"; % Default code rate
             dataParams.numSymPerFrame = 30;    % Number of symbols per frame
             dataParams.numFrames      = 30;    % Number of frames to transmit
-            dataParams.enableScopes   = true;  % Enable scopes for visualization
-            dataParams.verbosity      = true;  % Enable verbosity for diagnostics
-            dataParams.printData      = true;  % Print received data
-            dataParams.enableConst_measure = true; % Enable constellation measurement
+            dataParams.enableScopes   = cfg.enableScopes;  % Enable scopes for visualization
+            dataParams.verbosity      = cfg.verbosity;  % Enable verbosity for diagnostics
+            dataParams.printData      = cfg.printData;  % Print received data
+            dataParams.enableConst_measure = cfg.enableConst_measure; % Enable constellation measurement
     end
     % 更新 all_radioResource 中的信息, 保存该基站的BWP、OFDMParams 和 dataParams
     names = "DL_BS_" + string(num2str(current_receiving_BS_id));
