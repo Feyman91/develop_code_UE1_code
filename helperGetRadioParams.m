@@ -26,9 +26,10 @@ if ~strcmpi(radioDevice,'PLUTO')
         else
             ofdmRadioParams.IPAddress = deviceStatus(1).IPAddress;
         end
-    else
-        warning("USRP Device %s not found! Maybe a cache file will be used through comm.bbr() object! ", radioDevice);
+    elseif sysParams.read_savedData
         return
+    else
+        error("USRP Device %s not found, try to set read_savedData True to use local comm.bbr()!", radioDevice);
     end
 
     switch radioDevice
