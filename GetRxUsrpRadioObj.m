@@ -7,6 +7,7 @@ function radio = GetRxUsrpRadioObj(sysParamRxObj,radioDevice,centerFrequency,gai
 %   data visualizations
 field_name = fieldnames(sysParamRxObj);
 sysParam = getfield(sysParamRxObj,field_name{1}).sysParam;
+sysParam.read_savedData = read_savedData;
 ofdmRx = helperGetRadioParams(sysParam,radioDevice,sysParam.SampleRate,centerFrequency,gain,channelmapping);
 if read_savedData
     radio = comm.BasebandFileReader(read_filename, SamplesPerFrame=sysParam.txWaveformSize);
