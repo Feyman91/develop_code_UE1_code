@@ -161,13 +161,5 @@ numPayloads_bs = ceil(sysParam.trBlkSize/(messageLength_bs*sysParam.NumBitsPerCh
 message_bs = repmat(payloadMessage_bs,1,numPayloads_bs);
 trBlk_bs = reshape(int2bit(double(message_bs),sysParam.NumBitsPerCharacter),1,[]);
 payload_bs = trBlk_bs(1:sysParam.trBlkSize);
-% 
-% % Generate payload message for BS2
-% sysParam.NumBitsPerCharacter = 7;
-% payloadMessage_bs2 = char(readlines("transmit_data_bs2.txt"));
-% messageLength_bs2 = length(payloadMessage_bs2);
-% numPayloads_bs2 = ceil(sysParam.trBlkSize/(messageLength_bs2*sysParam.NumBitsPerCharacter)); 
-% message_bs2 = repmat(payloadMessage_bs2,1,numPayloads_bs2);
-% trBlk_bs2 = reshape(int2bit(double(message_bs2),sysParam.NumBitsPerCharacter),1,[]);
-% payload_bs2 = trBlk_bs2(1:sysParam.trBlkSize);
+
 end

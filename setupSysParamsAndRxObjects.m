@@ -27,11 +27,11 @@ function [sysParamRxObj] = setupSysParamsAndRxObjects(overAllOfdmParams, cfg)
         sysParam.SampleRate = sysParam.scs * sysParam.FFTLen;
 
         %%%%%%%%%%%%%%%%%%%%%%%%% 设置可选参数 %%%%%%%%%%%%%%%%%%%%%%%%%
-        sysParam.enableTimescope = false;
-        sysParam.enableCFO = true;
-        sysParam.enableCPE = true;
-        sysParam.enableChest = true;
-        sysParam.enableHeaderCRCcheck = true;
+        sysParam.enableTimescope        = cfg.enableTimescope;
+        sysParam.enableCFO              = cfg.enableCFO;
+        sysParam.enableCPE              = cfg.enableCPE;
+        sysParam.enableChest            = cfg.enableChest;
+        sysParam.enableHeaderCRCcheck   = cfg.enableHeaderCRCcheck;
         %%%%%%%%%%%%%%%%%%%%%%%%% 设置可选参数 %%%%%%%%%%%%%%%%%%%%%%%%%
 
         % 初始化接收对象 rxObj
