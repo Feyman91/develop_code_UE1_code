@@ -27,6 +27,7 @@ function [sysParamRxObj] = setupSysParamsAndRxObjects(overAllOfdmParams, cfg)
         sysParam.SampleRate = sysParam.scs * sysParam.FFTLen;
 
         %%%%%%%%%%%%%%%%%%%%%%%%% 设置可选参数 %%%%%%%%%%%%%%%%%%%%%%%%%
+        sysParam.enableBurstMode        = cfg.enableBurstMode;
         sysParam.enableTimescope        = cfg.enableTimescope;
         sysParam.enableCFO              = cfg.enableCFO;
         sysParam.enableCPE              = cfg.enableCPE;

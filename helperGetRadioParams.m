@@ -17,6 +17,8 @@ ofdmRadioParams.SampleRate      = sampleRate;                % Sample rate of tr
 ofdmRadioParams.NumFrames       = sysParams.numFrames;       % Number of frames for transmission/reception
 ofdmRadioParams.txWaveformSize  = sysParams.txWaveformSize;  % Size of the transmitted waveform
 ofdmRadioParams.modOrder        = sysParams.modOrder;
+ofdmRadioParams.enableBurstMode = sysParams.enableBurstMode;    % 是否启用burst接收
+
 if ~strcmpi(radioDevice,'PLUTO')
     foundUSRPs = findsdru;
     deviceStatus = foundUSRPs({foundUSRPs.Platform} == radioDevice);
