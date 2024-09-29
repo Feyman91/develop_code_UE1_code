@@ -34,8 +34,8 @@ gain                   = 55; % Set radio gain
 read_savedData         = false;
 
 % cfg 用来配置是否进行burst传输、CFO、CPE、信道均衡操作，显示示波器，可视化计算结果等。
-cfg.enableBurstMode      = false;                    % 是否选择进行突发接收（适当的采用burst传输以避免overflow，true表示启用burst传输，不是实时的，False表示禁用burst传输，是实时的）
-cfg.burstbuffersize      = 30;   % 设定突发传输的buffer大小（一个buffer的总帧数）
+cfg.enableBurstMode      = false;               % 是否选择进行突发接收（适当的采用burst传输以避免overflow，true表示启用burst传输，不是实时的，False表示禁用burst传输，是实时的）
+cfg.burstbuffersize      = 30;                  %（只有当enableBurstMode为Ture才有效）设定突发传输的buffer大小（一个buffer的总帧数）
 cfg.enableCFO            = true;
 cfg.enableCPE            = false;
 cfg.enableChest          = true;
