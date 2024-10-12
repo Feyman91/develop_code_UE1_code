@@ -114,6 +114,7 @@ else
         campedDelay.(fieldname) = campedDelay.(fieldname) - 1;
     else
         fprintf('[%s]Receiver camped.\n',fieldname);
+        foff = helperOFDMFrequencyOffset(rxIn,sysParam);
         camped = true;
     end
 end

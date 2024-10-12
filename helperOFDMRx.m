@@ -1,4 +1,4 @@
-function [rxDataBits,isConnected,toff,diagnostics] = helperOFDMRx(rxWaveform,sysParam,rxObj,timesink,frameNum)
+function [rxDataBits,isConnected,toff,diagnostics,SigOccured_frameNum] = helperOFDMRx(rxWaveform,sysParam,rxObj,timesink,frameNum)
 %helperOFDMRx Processes OFDM signal.
 %   Performs carrier frequency offset estimation and correction, frame
 %   synchronization, OFDM demodulation, channel estimation, channel
@@ -54,6 +54,7 @@ if ~isfield(rxInternalDiags, fieldname)
     rxInternalDiags.(fieldname) = struct( ...
         'estCFO',[],...
         'estChannel',[],...
+        'headerCRCErrorFlag',[],...
         'dataCRCErrorFlag',[]);  % 初始化状态
 end
 
@@ -64,16 +65,24 @@ end
 %         'dataCRCErrorFlag',[]);
 % end
 
+persistent InterSigOccured_frameNum;
+% 初始化 信号在缓存buffer中出现的起始帧数，如果为空
+if isempty(InterSigOccured_frameNum)
+    InterSigOccured_frameNum = struct();
+end
+% 如果该基站的状态还未存储，则初始化
+if ~isfield(InterSigOccured_frameNum, fieldname)
+    InterSigOccured_frameNum.(fieldname) = false;  % 初始化状态
+end
+
+
 if ~camped.(fieldname)
     isConnected = false;
     rxDataBits = [];
     % Search for sync symbol
     [camped.(fieldname),ta,foff] = helperOFDMRxSearch(rxWaveform,sysParam);
-    if ~camped.(fieldname)
-        diagnostics.estCFO = foff;
-    else
-        diagnostics.estCFO = [];
-    end
+    diagnostics.estCFO = foff.*sysParam.scs;
+    diagnostics.headerCRCErrorFlag = [];
     diagnostics.dataCRCErrorFlag = [];
     diagnostics.estChannel = [];
     
@@ -83,6 +92,7 @@ if ~camped.(fieldname)
         % Sync symbol found
         % toff = ta + 1;
         toff = ta;
+        InterSigOccured_frameNum.(fieldname) = frameNum;
     else
         toff = sysParam.timingAdvance;
     end
@@ -105,18 +115,20 @@ else
 end
 
 % Collect diagnostics
-oldCFO = rxInternalDiags.(fieldname).estCFO;
+% oldCFO = rxInternalDiags.(fieldname).estCFO;
+oldHeaderError = rxInternalDiags.(fieldname).headerCRCErrorFlag;
 oldFrameError = rxInternalDiags.(fieldname).dataCRCErrorFlag;
-oldEstChannel = rxInternalDiags.(fieldname).estChannel;
+% oldEstChannel = rxInternalDiags.(fieldname).estChannel;
 rxInternalDiags.(fieldname) = diagnostics;
-if frameNum < 40
-    rxInternalDiags.(fieldname).estCFO = [oldCFO; diagnostics.estCFO];
-    rxInternalDiags.(fieldname).estChannel = [oldEstChannel; diagnostics.estChannel];
-end
+% if frameNum < 40
+%     rxInternalDiags.(fieldname).estCFO = [oldCFO; diagnostics.estCFO];
+%     rxInternalDiags.(fieldname).estChannel = [oldEstChannel; diagnostics.estChannel];
+% end
+rxInternalDiags.(fieldname).headerCRCErrorFlag = [oldHeaderError; diagnostics.headerCRCErrorFlag];
 rxInternalDiags.(fieldname).dataCRCErrorFlag = [oldFrameError; diagnostics.dataCRCErrorFlag];
 
 diagnostics = rxInternalDiags.(fieldname);
-
+SigOccured_frameNum = InterSigOccured_frameNum;
 end
 
 function [rxDataBits,diagnostics] = rxFrame(rxWaveform,sysParam,rxObj,timesink)
@@ -349,7 +361,7 @@ rxDataBits = double(decodedDataBits); % convert from logical type to double
 
 % Assign output parameters
 diagnostics = struct( ...
-    'estCFO',freqOffset,...
+    'estCFO',freqOffset.*sysParam.scs,...
     'estChannel',estChannel,...
     'rxConstellationHeader',headerData,...
     'rxConstellationData',dataConstData,...
