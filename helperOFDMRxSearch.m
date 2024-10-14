@@ -16,7 +16,7 @@ function [camped,toff,foff] = helperOFDMRxSearch(rxIn,sysParam)
 %   estimated frequency offset
 %   toff - timing offset as calculated from the sync signal location in
 %   signal buffer
-%   foff - frequency offset as calculated from the first 144 symbols
+%   foff - frequency offset as calculated from the first minNumOfSymb_4CFOest symbols
 %   following sync symbol detection
 %
 % 获取当前基站的 ID
@@ -40,6 +40,14 @@ end
 
 % Create a countdown frame timer to wait for the frequency offset
 % estimation algorithm to converge
+
+% ********************注意！！！**********************
+% 这里的minNumOfSymb_4CFOest和本函数中调用的helperOFDMFrequencyOffset里的minNumOfSymb_4CFOest变量保持一致，要改动都改！
+% ********************注意！！！**********************
+% 其代表着刚接收到同步信号时，初始的时候，需要进行CFO估计的最小的symbol总数。根据测试和经验，其值越大
+% 估计的越稳定，CFO矫正越稳定。但导致缓存增加，程序计算量增加，初始化耗费帧数增多
+% 这里最初example默认值取150
+minNumOfSymb_4CFOest = 60;
 persistent campedDelay;
 % 初始化 camped，如果为空
 if isempty(campedDelay)
@@ -47,10 +55,10 @@ if isempty(campedDelay)
 end
 % 如果该基站的状态还未存储，则初始化
 if ~isfield(campedDelay, fieldname)
-    % The frequency offset algorithm requires 144 symbols to average before
+    % The frequency offset algorithm requires 150 symbols to average before
     % the first valid frequency offset estimate. Wait a minimum number of
     % frames before declaring camped state.
-    campedDelay.(fieldname) = ceil(144/sysParam.numSymPerFrame); 
+    campedDelay.(fieldname) = ceil(minNumOfSymb_4CFOest/sysParam.numSymPerFrame); 
 end
 
 % persistent campedDelay

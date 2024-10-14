@@ -14,20 +14,39 @@ function foffset = helperOFDMFrequencyOffset(rxWaveform,sysParam)
 %   of 1.0 is equal to the subcarrier spacing.
 
 % 下面的两个参数可以动态调整以提高CFO估计的准确性
-% 这里的movAvg_length移动平均长度设定将被用于最后输出的移动平均，
-% 根据测试和经验，其值越大，估计的越稳定，CFO矫正越出色。但导致程序计算量增加，耗费时间增多
-% 这里最初example默认值取16
-movAvg_length = 6;          
+
+% ********************注意！！！**********************
+% 这里的minNumOfSymb_4CFOest和外部调用本函数的helperOFDMRxSearch保持完全的一致，要改都改。
+% ********************注意！！！**********************
 % 这里的minNumOfSymb_4CFOest值被用于sampleAvgBuffer长度的设定，其代表着被所有用于进行CFO估计的最小的symbol总数
-% 根据测试和经验，其值越大，估计的越稳定，CFO矫正越出色。但导致缓存增加，程序计算量增加，耗费时间增多
+% 根据测试和经验，其值越大，初始时第一次估计的CFO值就越稳定和准确。但导致缓存增加，程序计算量增加，耗费时间增多
 % 这里最初example默认值取150
 minNumOfSymb_4CFOest = 60; 
 
-% 需要注意的是，下面初始化buffer中国根据minNumOfSymb_4CFOest计算得到numAvgCols，需要略大于movAvg_length
-% 比如numAvgCols = ceil((60+numFrames)/6) = 11；那么movAvg_length = 6＜11是正确的，
-% 同时这里movAvg_length也不能太过于接近numAvgCols，比如movAvg_length不能取9 or 10，否则就会导致CFO矫正出现问题
-% 因此改变上面两个参数的时候需要同时兼顾并动态调整，改1个则要注意另一个
+% movAvg_length_1st：该变量定义了第一次移动平均的窗口大小，即每次移动平均
+% 操作所使用的 OFDM 符号的数量。较大的值将使结果更加平滑（减少噪声的影响），
+% 但可能导致对快速频率变化的反应变慢。较小的值可以更快地跟踪频偏变化，
+% 但估计结果可能更不稳定。这里最初example默认值为 6，意味着对 6 个符号进行移动平均。
+movAvg_length_1st = 10;
 
+% 这里的movAvg_length_2nd移动平均长度设定将被用于第二次（最后）输出的移动平均，
+% 根据测试和经验，较大的值将使结果更加平滑（减少噪声的影响），估计的CFO越稳定，
+% 但可能导致对快速频率变化的反应变慢。较小的值可以更快地跟踪频偏变化，但估计的CFO值会出现不稳定和跳变的情况。
+% 这里最初example默认值取16，意味着对16个通过{movAvg_length_1st}个符号(默认为6个符号）移动平均计算出的频偏值再次进行移动平均
+movAvg_length_2nd = 4;    
+
+% 需要注意的是，movAvg_length_2nd 的取值需要综合考虑 movAvg_length_1st 和 minNumOfSymb_4CFOest。
+% 在初始化缓冲区时，numAvgCols 的计算依赖于 minNumOfSymb_4CFOest 和 movAvg_length_1st，
+% 它表示第1次移动平均操作所需的符号组数。为了保证移动平均操作的有效性，numAvgCols 应略大于
+% 第二次移动平均长度 movAvg_length_2nd。
+% 
+% 比如，numAvgCols = ceil((minNumOfSymb_4CFOest + numFrames) / movAvg_length_1st)，
+% 如果计算得 numAvgCols = ceil((60 + 1) / 10) = 7，那么选择 movAvg_length_2nd = 4 是合适的，
+% 需要确保 movAvg_length_2nd 的值略小于numAvgCols。
+% 
+% 同时，movAvg_length_2nd 不应太接近 numAvgCols（比如不能选择6或7），否则可能导致 CFO 矫正不稳定或失效。
+% 因此，在修改 movAvg_length_1st 或 minNumOfSymb_4CFOest 的值时，必须确保 movAvg_length_2nd 保持适当的比例关系，
+% 这三个参数需要综合考虑，改变其中一个时应调整另一个以确保频偏估计的准确性和稳定性。
 
 nFFT     = sysParam.FFTLen; 
 cpLength = sysParam.CPLen;
@@ -50,8 +69,8 @@ end
 % 如果该基站的状态还未存储，则初始化
 if ~isfield(sampleAvgBuffer, fieldname)
     numFrames = floor(buffLen/numSampPerFrame);
-    numAvgCols = ceil((minNumOfSymb_4CFOest+numFrames)/6); % (minNumOfSymb_4CFOest+1)*6 symbol minimum for averaging
-    sampleAvgBuffer.(fieldname) = zeros(6*numAvgCols*symbLen,1);
+    numAvgCols = ceil((minNumOfSymb_4CFOest+numFrames)/movAvg_length_1st); % at least numAvgCols*movAvg_length_1st symbols minimum for averaging
+    sampleAvgBuffer.(fieldname) = zeros(movAvg_length_1st*numAvgCols*symbLen,1);
 end
 % persistent sampleAvgBuffer;
 % if isempty(sampleAvgBuffer)
@@ -79,9 +98,9 @@ cpcorrunfilt2 = [zeros(cpLength,1); cpcorrunfilt(1:end-cpLength)];
 cpCorr = cpcorrunfilt1-cpcorrunfilt2;
 cpCorrFinal = cumsum(cpCorr)/cpLength;
 
-% Perform Moving average filter of 6 symbol length
-data = zeros(length(cpCorrFinal),6);
-for ii = 1:6
+% Perform Moving average filter of {1st_movAvg_length} symbol length
+data = zeros(length(cpCorrFinal),movAvg_length_1st);
+for ii = 1:movAvg_length_1st
     data(:,ii) = [zeros((ii-1)*symbLen,1); cpCorrFinal(1:end-(ii-1)*symbLen)];
 end
 
@@ -103,7 +122,7 @@ end
 % angleOutput = angle_avgCorr/(2*pi);
 % % this is end of test code for angle only average 
 
-avgCorr = sum(data,2)/6;
+avgCorr = sum(data,2)/movAvg_length_1st;
 
 ObjMagOp   = abs(avgCorr);
 ObjAngleOp = angle(avgCorr);
@@ -112,14 +131,14 @@ magOutput  = ObjMagOp;
 % Divide the output angle by 2 to normalize
 angleOutput = ObjAngleOp/(2*pi);
 
-% Consider a window of 6 OFDM symbols
-samplesfor6symbols = 6*symbLen;
-maxOPNum = floor(length(magOutput)/samplesfor6symbols);
+% Consider a window of {1st_movAvg_length} OFDM symbols
+samples4_1stmovAvgLen_symbols = movAvg_length_1st*symbLen;
+maxOPNum = floor(length(magOutput)/samples4_1stmovAvgLen_symbols);
 
-magOpReshape = reshape(magOutput(1:samplesfor6symbols*maxOPNum),samplesfor6symbols,maxOPNum);
-angleOpReshape = reshape(angleOutput(1:samplesfor6symbols*maxOPNum),samplesfor6symbols,maxOPNum);
+magOpReshape = reshape(magOutput(1:samples4_1stmovAvgLen_symbols*maxOPNum),samples4_1stmovAvgLen_symbols,maxOPNum);
+angleOpReshape = reshape(angleOutput(1:samples4_1stmovAvgLen_symbols*maxOPNum),samples4_1stmovAvgLen_symbols,maxOPNum);
 
-% Find max angle for every 6 OFDM symbols
+% Find max angle for every group of {1st_movAvg_length} OFDM symbols
 maxMagOp = zeros(maxOPNum,1);
 maxAngOp = zeros(maxOPNum,1);
 for ii=1:maxOPNum
@@ -127,9 +146,9 @@ for ii=1:maxOPNum
     maxAngOp(ii) = angleOpReshape(loc,ii);
 end
 
-% Perform moving average filter of length {movAvg_length}
-maxAngOpFinal = maxAngOp-[zeros(movAvg_length,1); maxAngOp(1:end-movAvg_length)];
-foff = cumsum(maxAngOpFinal)/movAvg_length;
+% Perform moving average filter of length {movAvg_length_2nd}
+maxAngOpFinal = maxAngOp-[zeros(movAvg_length_2nd,1); maxAngOp(1:end-movAvg_length_2nd)];
+foff = cumsum(maxAngOpFinal)/movAvg_length_2nd;
 
 % % Perform moving average filter of length 16
 % maxAngOpFinal = maxAngOp-[zeros(16,1); maxAngOp(1:end-16)];
@@ -139,8 +158,8 @@ foff = cumsum(maxAngOpFinal)/movAvg_length;
 % maxAngOpFinal = maxAngOp-[zeros(24,1); maxAngOp(1:end-24)];
 % foff = cumsum(maxAngOpFinal)/24;
 
-% Repeat the values for every 6 OFDM symbols
-cfoVal = ones(samplesfor6symbols,1)*[0;foff].';
+% Repeat the values for every length of {1st_movAvg_length} OFDM symbols
+cfoVal = ones(samples4_1stmovAvgLen_symbols,1)*foff.';
 cfoValFlat = cfoVal(:);
 
 foffset = cfoValFlat(end-buffLen+1:end);
